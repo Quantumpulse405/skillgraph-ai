@@ -36,22 +36,33 @@ export default function Home() {
     formData.append('resume', file);
     formData.append('job_description', jobDescription);
 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/analyze';
+    console.log(`Sending analysis request to backend at: ${apiUrl}`);
+
     try {
-      // In development, assume the FastAPI backend runs on localhost:8000
-      const response = await fetch('http://localhost:8000/analyze', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Analysis failed. Please try again.');
+        const errorMessage = errData.detail || `Server error: ${response.status} ${response.statusText}`;
+        console.error("API Error Response:", errData);
+        throw new Error(errorMessage);
       }
 
       const data: AnalysisResult = await response.json();
       setResult(data);
+      console.log("Analysis successful:", data);
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      console.error("Fetch/Network Error:", err);
+      // Improve the error message for network/CORS issues
+      if (err.message === 'Failed to fetch') {
+        setError('Network error: Could not reach the backend server. Please ensure the FastAPI server is running and accessible.');
+      } else {
+        setError(err.message || 'An unexpected error occurred while communicating with the server.');
+      }
     } finally {
       setLoading(false);
     }
