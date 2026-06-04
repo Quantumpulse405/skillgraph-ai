@@ -4,3 +4,5 @@ pydantic
 google-generativeai
 pytest
 httpx
+python-multipart
+PyPDF2
