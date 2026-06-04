@@ -1,19 +1,27 @@
 import os
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
+import PyPDF2
+from io import BytesIO
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure the Gemini API globally if the key is present
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
-
-class AnalyzeRequest(BaseModel):
-    resume: str
-    job_description: str
 
 class AnalyzeResponse(BaseModel):
     skills: list[str]
@@ -22,10 +30,35 @@ class AnalyzeResponse(BaseModel):
     roadmap: list[str]
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_resume(request: AnalyzeRequest):
+async def analyze_resume(
+    resume: UploadFile = File(...),
+    job_description: str = Form(...)
+):
     # Ensure the API key is set before making the request
     if not os.environ.get("GEMINI_API_KEY"):
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY environment variable not set")
+
+    # Validate file type
+    if resume.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    try:
+        # Read the uploaded PDF file into memory
+        file_content = await resume.read()
+        pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
+
+        # Extract text from all pages
+        resume_text = ""
+        for page in pdf_reader.pages:
+            extracted_text = page.extract_text()
+            if extracted_text:
+                resume_text += extracted_text + "\n"
+
+        if not resume_text.strip():
+             raise HTTPException(status_code=400, detail="Could not extract text from the provided PDF")
+
+    except Exception as e:
+         raise HTTPException(status_code=400, detail=f"Error reading PDF file: {str(e)}")
 
     prompt = f"""
     Analyze the following resume against the job description.
@@ -38,10 +71,10 @@ async def analyze_resume(request: AnalyzeRequest):
     }}
 
     Resume:
-    {request.resume}
+    {resume_text}
 
     Job Description:
-    {request.job_description}
+    {job_description}
     """
 
     try:
