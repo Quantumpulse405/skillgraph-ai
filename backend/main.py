@@ -6,6 +6,13 @@ from pydantic import BaseModel
 import google.generativeai as genai
 import PyPDF2
 from io import BytesIO
+from dotenv import load_dotenv
+
+load_dotenv()
+
+print("Current directory:", os.getcwd())
+# Do not log sensitive API keys in plain text
+# print("API KEY:", os.environ.get("GEMINI_API_KEY"))
 
 app = FastAPI()
 
