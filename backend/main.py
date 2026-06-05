@@ -78,8 +78,8 @@ async def analyze_resume(
     """
 
     try:
-        # Use gemini-1.5-flash and configure response to be JSON
-        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+        # Use gemini-2.5-flash and configure response to be JSON
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         response = model.generate_content(prompt)
 
         # Parse the JSON response safely
